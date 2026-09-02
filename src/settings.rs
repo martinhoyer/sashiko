@@ -373,6 +373,23 @@ pub struct OpenAiCompatSettings {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 #[allow(unused)]
+pub struct OpenAiSettings {
+    #[serde(default)]
+    pub base_url: Option<String>,
+    #[serde(default)]
+    pub context_window_size: Option<usize>,
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
+    /// Reasoning effort for OpenAI reasoning models. GPT-5.6 accepts "none",
+    /// "low", "medium", "high", "xhigh", and "max". Leave unset to use the
+    /// model default ("medium" for GPT-5.6).
+    #[serde(default)]
+    pub reasoning_effort: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+#[allow(unused)]
 pub struct VllmSettings {
     #[serde(default)]
     pub base_url: Option<String>,
@@ -537,6 +554,7 @@ pub struct AiSettings {
     #[cfg(feature = "vertex")]
     pub vertex: Option<VertexSettings>,
     pub openai_compat: Option<OpenAiCompatSettings>,
+    pub openai: Option<OpenAiSettings>,
     pub ollama: Option<OllamaSettings>,
     pub vllm: Option<VllmSettings>,
     pub kiro_cli: Option<KiroCliSettings>,
@@ -1414,6 +1432,24 @@ mod tests {
     fn test_init_template_parses() {
         Settings::load(Some(Path::new("docs/examples/Settings.example.toml")))
             .expect("init template must parse");
+    }
+
+    #[test]
+    fn test_openai_settings_deserialize() {
+        // Exercise provider settings independently of daemon configuration.
+        let toml_str = r#"
+provider = "openai"
+model = "gpt-5.6-terra"
+
+[openai]
+max_tokens = 65536
+reasoning_effort = "medium"
+"#;
+        let ai: AiSettings = toml::from_str(toml_str).unwrap();
+        let openai = ai.openai.unwrap();
+        assert_eq!(openai.max_tokens, Some(65536));
+        assert_eq!(openai.reasoning_effort.as_deref(), Some("medium"));
+        assert!(openai.base_url.is_none());
     }
 
     #[test]
